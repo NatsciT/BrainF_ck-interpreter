@@ -118,6 +118,8 @@ inputv:
 ; ############################ TO FIX
 
 viszero:
+	xor ecx, ecx
+	inc ecx
 	movzx bx, byte ptr [esi + edi]
 	test bx, bx
 	je viszero_jump
@@ -127,23 +129,47 @@ viszero_jump:
 	add dword ptr [ebp+8], 2
 	mov esi, dword ptr [ebp+8]
 	mov bl, byte ptr [esi]
-	sub bl, 5Dh
-	jne viszero_jump
-	jmp interpret_loop
+	cmp bl, 5Dh
+	je viszero_rightbracket
+	cmp bl, 5Bh
+	je viszero_leftbracket
+	jmp viszero_jump
+	
+viszero_leftbracket:
+	inc ecx
+	jmp viszero_jump
+
+viszero_rightbracket:
+	sub ecx, 1
+	je interpret_loop
+	jmp viszero_jump
 
 visntzero:
+	xor ecx, ecx
+	inc ecx
 	movzx bx, byte ptr [esi + edi]
-	test bx, bx
+	cmp bx, 0
 	jne visntzero_jump
 	jmp interpret_loop
 
 visntzero_jump:
 	sub dword ptr [ebp+8], 2
 	mov esi, dword ptr [ebp+8]
-	mov bl, byte ptr [esi]
-	sub bl, 5Bh
-	jne visntzero_jump
-	jmp interpret_loop
+	mov bl, byte ptr [esi-2]
+	cmp bl, 5Dh
+	je visntzero_rightbracket
+	cmp bl, 5Bh
+	je visntzero_leftbracket
+	jmp visntzero_jump
+
+visntzero_leftbracket:
+	sub ecx, 1
+	je interpret_loop
+	jmp visntzero_jump
+
+visntzero_rightbracket:
+	inc ecx
+	jmp visntzero_jump
 
 ; ############################ TO FIX
 
