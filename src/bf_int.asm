@@ -17,7 +17,7 @@ INCLUDELIB	C:\masm32\lib\shell32.lib
 	InvalidInstruction			db 13, 10, "Argument contains one or more invalid instruction(s).", 0
 	UnknownError				db 13, 10, "Unknown error.", 0
 
-	OperationEndedSuccessfully	db 13, 10, "Execution ended successfully", 0
+	OperationEndedSuccessfully	db 13, 10, "Execution ended successfully.", 0
 
 .CODE
 interpret PROC
