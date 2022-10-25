@@ -5,6 +5,7 @@ Title says all.
 ## Todos
 
 - Make it possible to read scripts from `.b` files
+- Write a better README.md
 
 ## Demo
 
