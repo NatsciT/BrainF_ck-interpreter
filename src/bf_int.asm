@@ -11,13 +11,13 @@ INCLUDELIB	C:\masm32\lib\kernel32.lib
 INCLUDELIB	C:\masm32\lib\shell32.lib
 
 .DATA
-	IncorrectArgumentsErrorMsg	db "Incorrect arguments.", 0
-	FailedToAllocMemory			db "Failed to allocated memory.", 0
-	OutOfBound					db "Referenced address is out of bound.", 0
-	InvalidInstruction			db "Argument contains one or more invalid instruction(s).", 0
-	UnknownError				db "Unknown error.", 0
+	IncorrectArgumentsErrorMsg	db 13, 10, "Incorrect arguments.", 0
+	FailedToAllocMemory			db 13, 10, "Failed to allocated memory.", 0
+	OutOfBound					db 13, 10, "Referenced address is out of bound.", 0
+	InvalidInstruction			db 13, 10, "Argument contains one or more invalid instruction(s).", 0
+	UnknownError				db 13, 10, "Unknown error.", 0
 
-	OperationEndedSuccessfully	db "Execution ended successfully", 0
+	OperationEndedSuccessfully	db 13, 10, "Execution ended successfully", 0
 
 .CODE
 interpret PROC
@@ -115,6 +115,8 @@ inputv:
 	mov byte ptr [esi + edi], al
 	jmp interpret_loop
 
+; ############################ TO FIX
+
 viszero:
 	movzx bx, byte ptr [esi + edi]
 	test bx, bx
@@ -130,7 +132,7 @@ viszero_jump:
 	jmp interpret_loop
 
 visntzero:
-movzx bx, byte ptr [esi + edi]
+	movzx bx, byte ptr [esi + edi]
 	test bx, bx
 	jne visntzero_jump
 	jmp interpret_loop
@@ -142,6 +144,8 @@ visntzero_jump:
 	sub bl, 5Bh
 	jne visntzero_jump
 	jmp interpret_loop
+
+; ############################ TO FIX
 
 interpret_good_exit:				; 0
 	xor eax, eax
