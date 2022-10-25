@@ -84,7 +84,7 @@ interpret_loop:
 	je viszero		; 5b
 	sub bl, 2h
 	je visntzero	; 5d
-	jmp interpret_invalid_instruction
+	jmp interpret_loop
 
 addptr:
 	add di, 1
