@@ -13,6 +13,11 @@ INCLUDELIB	C:\masm32\lib\shell32.lib
 .DATA
 	IncorrectArgumentsErrorMsg	db "Incorrect arguments.", 0
 	FailedToAllocMemory			db "Failed to allocated memory.", 0
+	OutOfBound					db "Referenced address is out of bound.", 0
+	InvalidInstruction			db "Argument contains one or more invalid instruction(s).", 0
+	UnknownError				db "Unknown error.", 0
+
+	OperationEndedSuccessfully	db "Execution ended successfully", 0
 
 .CODE
 interpret PROC
@@ -25,14 +30,14 @@ interpret PROC
 	; return 3 when invalid instruction is included
 
 	; read the instruction
-	; > (3e, addptr) :		Æ÷ÀÎÅÍ Áõ°¡
-	; < (3c, subptr) :		Æ÷ÀÎÅÍ °¨¼Ò
-	; + (2b, addval) :		Æ÷ÀÎÅÍ°¡ °¡¸®Å°´Â ¹ÙÀÌÆ®ÀÇ °ªÀ» Áõ°¡
-	; - (2d, subval) :		Æ÷ÀÎÅÍ°¡ °¡¸®Å°´Â ¹ÙÀÌÆ®ÀÇ °ªÀ» °¨¼Ò
-	; . (2e, printv) :		Æ÷ÀÎÅÍ°¡ °¡¸®Å°´Â ¹ÙÀÌÆ® °ªÀ» ¾Æ½ºÅ° ÄÚµå ¹®ÀÚ·Î Ãâ·ÂÇÑ´Ù.
-	; , (2c, inputv) :		Æ÷ÀÎÅÍ°¡ °¡¸®Å°´Â ¹ÙÀÌÆ®¿¡ ¾Æ½ºÅ° ÄÚµå °ªÀ» ÀÔ·ÂÇÑ´Ù.
-	; [ (5b, viszero) :		Æ÷ÀÎÅÍ°¡ °¡¸®Å°´Â ¹ÙÀÌÆ®ÀÇ °ªÀÌ 0ÀÌ µÇ¸é Â¦ÀÌ µÇ´Â ]·Î ÀÌµ¿ÇÑ´Ù.
-	; ] (5d, visntzero) :	Æ÷ÀÎÅÍ°¡ °¡¸®Å°´Â ¹ÙÀÌÆ®ÀÇ °ªÀÌ 0ÀÌ ¾Æ´Ï¸é Â¦ÀÌ µÇ´Â [·Î ÀÌµ¿ÇÑ´Ù.
+	; > (3e, addptr) :		í¬ì¸í„° ì¦ê°€
+	; < (3c, subptr) :		í¬ì¸í„° ê°ì†Œ
+	; + (2b, addval) :		í¬ì¸í„°ê°€ ê°€ë¦¬í‚¤ëŠ” ë°”ì´íŠ¸ì˜ ê°’ì„ ì¦ê°€
+	; - (2d, subval) :		í¬ì¸í„°ê°€ ê°€ë¦¬í‚¤ëŠ” ë°”ì´íŠ¸ì˜ ê°’ì„ ê°ì†Œ
+	; . (2e, printv) :		í¬ì¸í„°ê°€ ê°€ë¦¬í‚¤ëŠ” ë°”ì´íŠ¸ ê°’ì„ ì•„ìŠ¤í‚¤ ì½”ë“œ ë¬¸ìë¡œ ì¶œë ¥í•œë‹¤.
+	; , (2c, inputv) :		í¬ì¸í„°ê°€ ê°€ë¦¬í‚¤ëŠ” ë°”ì´íŠ¸ì— ì•„ìŠ¤í‚¤ ì½”ë“œ ê°’ì„ ì…ë ¥í•œë‹¤.
+	; [ (5b, viszero) :		í¬ì¸í„°ê°€ ê°€ë¦¬í‚¤ëŠ” ë°”ì´íŠ¸ì˜ ê°’ì´ 0ì´ ë˜ë©´ ì§ì´ ë˜ëŠ” ]ë¡œ ì´ë™í•œë‹¤.
+	; ] (5d, visntzero) :	í¬ì¸í„°ê°€ ê°€ë¦¬í‚¤ëŠ” ë°”ì´íŠ¸ì˜ ê°’ì´ 0ì´ ì•„ë‹ˆë©´ ì§ì´ ë˜ëŠ” [ë¡œ ì´ë™í•œë‹¤.
 
 	; prologue
 	push ebp
@@ -51,9 +56,16 @@ interpret PROC
 interpret_loop:
 	; check if end of instruction
 	; and move the instruction to bl
-	mov bl, byte ptr [dword ptr [ebp+8]]
+	mov esi, dword ptr [ebp+8]
+	mov bl, byte ptr [esi]
 	test bl, bl
-	je interpret_exit
+	je interpret_good_exit
+
+	; add instruction pointer
+	add dword ptr [ebp+8], 2
+
+	; load address of the allocated memory in esi
+	mov esi, dword ptr [ebp-4]
 
 	; figure out which instruction it is
 	sub bl, 2Bh
@@ -68,45 +80,72 @@ interpret_loop:
 	je subptr		; 3c
 	sub bl, 2h
 	je addptr		; 3e
-	sub bl, 1d
+	sub bl, 1Dh
 	je viszero		; 5b
 	sub bl, 2h
 	je visntzero	; 5d
 	jmp interpret_invalid_instruction
 
 addptr:
-	inc di
+	add di, 1
 	jc interpret_out_of_bound
 	jmp interpret_loop
 
 subptr:
-	dec di
+	sub di, 1
 	jc interpret_out_of_bound
 	jmp interpret_loop
 
 addval:
-	inc dword ptr [dword ptr [ebp-4] + edi]
+	inc dword ptr [esi + edi]
 	jmp interpret_loop
 
 subval:
-	dec dword ptr [dword ptr [ebp-4] + edi]
+	dec dword ptr [esi + edi]
 	jmp interpret_loop
 
 printv:
-
+	movzx esi, byte ptr [esi + edi]
+	invoke crt_putchar, esi
 	jmp interpret_loop
 
 inputv:
-
+	invoke crt_getchar
+	mov esi, dword ptr [ebp-4]
+	mov byte ptr [esi + edi], al
 	jmp interpret_loop
 
 viszero:
+	movzx bx, byte ptr [esi + edi]
+	test bx, bx
+	je viszero_jump
+	jmp interpret_loop
 
+viszero_jump:
+	add dword ptr [ebp+8], 2
+	mov esi, dword ptr [ebp+8]
+	mov bl, byte ptr [esi]
+	sub bl, 5Dh
+	jne viszero_jump
 	jmp interpret_loop
 
 visntzero:
-
+movzx bx, byte ptr [esi + edi]
+	test bx, bx
+	jne visntzero_jump
 	jmp interpret_loop
+
+visntzero_jump:
+	sub dword ptr [ebp+8], 2
+	mov esi, dword ptr [ebp+8]
+	mov bl, byte ptr [esi]
+	sub bl, 5Bh
+	jne visntzero_jump
+	jmp interpret_loop
+
+interpret_good_exit:				; 0
+	xor eax, eax
+	jmp interpret_free_and_exit
 
 interpret_failed_to_alloc_mem:		; 1
 	xor eax, eax
@@ -124,7 +163,9 @@ interpret_invalid_instruction:		; 3
 	jmp interpret_free_and_exit
 
 interpret_free_and_exit:
+	push eax
 	invoke crt_free, dword ptr [ebp-4]
+	pop eax
 interpret_exit:
 	; epilogue
 	add esp, 8
@@ -132,6 +173,8 @@ interpret_exit:
 	pop ebp
 	ret
 interpret ENDP
+
+
 
 main PROC
 	; ebp-4  : allocated memory
@@ -162,12 +205,38 @@ main PROC
 	push dword ptr [eax+8]
 	call interpret
 
+	test eax, eax
+	je main_success
+	sub eax, 1
+	je main_failed_to_alloc_mem
+	sub eax, 1
+	je main_out_of_bound
+	sub eax, 1
+	je main_invalid_instruction
+	jmp main_unknown_error
+
+main_success:
+	invoke crt_puts, addr OperationEndedSuccessfully
+	jmp main_exit
+
 main_incorrect_arguments:
 	invoke crt_puts, addr IncorrectArgumentsErrorMsg
 	jmp main_exit
 
 main_failed_to_alloc_mem:
 	invoke crt_puts, addr FailedToAllocMemory
+	jmp main_exit
+
+main_out_of_bound:
+	invoke crt_puts, addr OutOfBound
+	jmp main_exit
+
+main_invalid_instruction:
+	invoke crt_puts, addr InvalidInstruction
+	jmp main_exit
+
+main_unknown_error:
+	invoke crt_puts, addr UnknownError
 	jmp main_exit
 	
 main_exit:
