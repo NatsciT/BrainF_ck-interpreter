@@ -17,18 +17,30 @@ INCLUDELIB	C:\masm32\lib\shell32.lib
 	InvalidInstruction			db 13, 10, "Argument contains one or more invalid instruction(s).", 0
 	UnknownError				db 13, 10, "Unknown error.", 0
 
-	OperationEndedSuccessfully	db 13, 10, "Execution ended successfully.", 0
+	OperationEndedSuccessfully	db 13, 10, "Execution ended successfully", 0
 
 .CODE
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+; ┌───────────────────────────────────────────────────────────┐
+; │ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% interpret procedure │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### param ############################################# │
+; ├───────────────────────────────────────────────────────────┤
+; │ ebp+8 : address to the input instructions                 │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### local variable #################################### │
+; ├───────────────────────────────────────────────────────────┤
+; │ ebp-4 : pointer to allocated memory                       │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### return ############################################ │
+; ├───────────────────────────────────────────────────────────┤
+; │ return 0 on success                                       │
+; │ return 1 on memory allocation failure                     │
+; │ return 2 when bf pointer moves out of bound               │
+; │ return 3 when invalid instruction is included             │
+; └───────────────────────────────────────────────────────────┘
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 interpret PROC
-	; ebp+8 : address to the input instructions
-	; ebp-4 : pointer to allocated memory
-
-	; return 0 on success
-	; return 1 on memory allocation failure
-	; return 2 when bf pointer moves out of bound
-	; return 3 when invalid instruction is included
-
 	; read the instruction
 	; > (3e, addptr) :		포인터 증가
 	; < (3c, subptr) :		포인터 감소
@@ -39,35 +51,35 @@ interpret PROC
 	; [ (5b, viszero) :		포인터가 가리키는 바이트의 값이 0이 되면 짝이 되는 ]로 이동한다.
 	; ] (5d, visntzero) :	포인터가 가리키는 바이트의 값이 0이 아니면 짝이 되는 [로 이동한다.
 
-	; prologue
+	; %%%%%%%%%%%%%%% prologue
 	push ebp
 	mov ebp, esp
 	sub esp, 4
 
-	; calloc
+	; %%%%%%%%%%%%%%% calloc
 	invoke crt_calloc, 1, 65536		; 64KB
 	test eax, eax
 	je interpret_failed_to_alloc_mem
 	mov dword ptr [ebp-4], eax
 
-	; setup bf pointer (saved in di)
+	; %%%%%%%%%%%%%%% setup bf pointer (saved in di)
 	xor edi, edi
 
 interpret_loop:
-	; check if end of instruction
-	; and move the instruction to bl
+	; %%%%%%%%%%%%%%% check if end of instruction
+	; %%%%%%%%%%%%%%% and move the instruction to bl
 	mov esi, dword ptr [ebp+8]
 	mov bl, byte ptr [esi]
 	test bl, bl
 	je interpret_good_exit
 
-	; add instruction pointer
+	; %%%%%%%%%%%%%%% add instruction pointer
 	add dword ptr [ebp+8], 2
 
-	; load address of the allocated memory in esi
+	; %%%%%%%%%%%%%%% load address of the allocated memory in esi
 	mov esi, dword ptr [ebp-4]
 
-	; figure out which instruction it is
+	; %%%%%%%%%%%%%%% figure out which instruction it is
 	sub bl, 2Bh
 	je addval		; 2b
 	sub bl, 1h
@@ -114,8 +126,6 @@ inputv:
 	mov esi, dword ptr [ebp-4]
 	mov byte ptr [esi + edi], al
 	jmp interpret_loop
-
-; ############################ TO FIX
 
 viszero:
 	xor ecx, ecx
@@ -171,8 +181,6 @@ visntzero_rightbracket:
 	inc ecx
 	jmp visntzero_jump
 
-; ############################ TO FIX
-
 interpret_good_exit:				; 0
 	xor eax, eax
 	jmp interpret_free_and_exit
@@ -203,15 +211,58 @@ interpret_exit:
 	pop ebp
 	ret
 interpret ENDP
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+; ┌───────────────────────────────────────────────────────────┐
+; │ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% filehandling procedure │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### param ############################################# │
+; ├───────────────────────────────────────────────────────────┤
+; │ ebp+8 : address to file name                              │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### local variable #################################### │
+; ├───────────────────────────────────────────────────────────┤
+; │ ???????                                                   │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### return ############################################ │
+; ├───────────────────────────────────────────────────────────┤
+; │ return 0 if action was successful                         │
+; │ else return 1                                             │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### notes ############################################# │
+; ├───────────────────────────────────────────────────────────┤
+; │ set [eax+8] as pointer to the bf code                     │
+; └───────────────────────────────────────────────────────────┘
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+filehandling PROC
+	push ebp
+	mov ebp, esp
 
+	; %%%%%%%%%%%%%%% implement
 
+	mov esp, ebp
+	pop ebp
+filehandling ENDP
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+; ┌───────────────────────────────────────────────────────────┐
+; │ %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% main procedure │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### local variable #################################### │
+; ├───────────────────────────────────────────────────────────┤
+; │ ebp-4 : allocated memory                                  │
+; │ ebp-8 : argc                                              │
+; │ ebp-12: pointer to the input                              │
+; ├───────────────────────────────────────────────────────────┤
+; │ ##### return ############################################ │
+; ├───────────────────────────────────────────────────────────┤
+; │ Always return 0                                           │
+; └───────────────────────────────────────────────────────────┘
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 main PROC
-	; ebp-4  : allocated memory
-	; ebp-8  : argc
-	; ebp-12 : pointer to the input
-
-	; prologue
+	; %%%%%%%%%%%%%%% prologue
 	push ebp
 	mov ebp, esp
 	sub esp, 12
@@ -222,16 +273,29 @@ main PROC
 	sub dword ptr [ebx], 3
 	jnz main_incorrect_arguments
 
-	;
-	; The program has three entry mode
-	; -d : debug mode
-	; -f : interpret from file mode
-	; -r : raw input mode
-	;
-	; implement a function to know what mode this is
-	; right now, it assumes that every input is in -r mode
-	;
-	
+	; %%%%%%%%%%%%%%% ┌ eax+0 ──┬ eax+4 ──┬ eax+8 ──┐
+	; %%%%%%%%%%%%%%% │ argv[0] │ argv[1] │ argv[2] │
+	; %%%%%%%%%%%%%%% └─────────┴─────────┴─────────┘
+	; %%%%%%%%%%%%%%% The program has two entry mode
+	; %%%%%%%%%%%%%%% f(0x66) : interpret from file mode
+	; %%%%%%%%%%%%%%% r(0x72) : raw input mode
+	; %%%%%%%%%%%%%%%
+	; %%%%%%%%%%%%%%% Check if argv[1] is f or r
+	; %%%%%%%%%%%%%%% If it is neither of those, jump to main_incorrect_arguments lable
+	; %%%%%%%%%%%%%%% Else if it is f, invoke filehandling proc with parameter argv[2]
+	; %%%%%%%%%%%%%%% Else, procede to interpret
+
+	mov ebx, dword ptr[eax+4]
+	cmp dword ptr [ebx], 66h
+	je main_f
+	cmp dword ptr [ebx], 72h
+	je main_r
+	jmp main_incorrect_arguments
+
+main_f:
+	; %%%%%%%%%%%%%%% open file
+
+main_r:
 	push dword ptr [eax+8]
 	call interpret
 
@@ -245,6 +309,7 @@ main PROC
 	je main_invalid_instruction
 	jmp main_unknown_error
 
+	; %%%%%%%%%%%%%%% print message
 main_success:
 	invoke crt_puts, addr OperationEndedSuccessfully
 	jmp main_exit
@@ -270,11 +335,15 @@ main_unknown_error:
 	jmp main_exit
 	
 main_exit:
-	; epilogue
+	; %%%%%%%%%%%%%%% epilogue
+	; %%%%%%%%%%%%%%% Check if argv[1] is f
+	; %%%%%%%%%%%%%%% If it is, free the memory or whatevery
+	xor eax, eax
 	add esp, 12
 	mov esp, ebp
 	pop ebp
 	ret
 main ENDP
+; &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 END
